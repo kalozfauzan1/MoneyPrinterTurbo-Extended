@@ -2,6 +2,7 @@ x-moneyprinter-common: &moneyprinter-common
   build:
     context: .
     dockerfile: Dockerfile
+
   image: moneyprinterturbo-extended:local
   restart: unless-stopped
 
@@ -13,20 +14,25 @@ x-moneyprinter-common: &moneyprinter-common
     TZ: Asia/Jakarta
     PYTHONUNBUFFERED: "1"
 
-    # Persistent runtime config
-    MPT_CONFIG_FILE: /MoneyPrinterTurbo/runtime-config/config.toml
-
+    # Force CPU mode
     CHATTERBOX_DEVICE: cpu
 
-    # Redis / task state
+    # Persistent config
+    MPT_CONFIG_FILE: /MoneyPrinterTurbo/runtime-config/config.toml
+
+    # Redis
     MPT_REDIS_ENABLED: "true"
     MPT_REDIS_HOST: moneyprinter-redis
     MPT_REDIS_PORT: "6379"
     MPT_REDIS_DB: "0"
     MPT_REDIS_PASSWORD: ${MPT_REDIS_PASSWORD}
+
+    # Recommended for CPU-only server
     MPT_MAX_CONCURRENT_TASKS: ${MPT_MAX_CONCURRENT_TASKS:-1}
 
+
 services:
+
   moneyprinter-webui:
     <<: *moneyprinter-common
 
@@ -37,7 +43,6 @@ services:
       - --server.address=0.0.0.0
       - --server.port=8501
       - --server.headless=true
-      - --server.enableCORS=true
       - --browser.gatherUsageStats=false
 
     expose:
@@ -60,7 +65,6 @@ services:
 
     networks:
       - dokploy-network
-      - hermes-tools-network
 
 
   moneyprinter-api:
@@ -89,7 +93,7 @@ services:
       start_period: 60s
 
     networks:
-      hermes-tools-network:
+      dokploy-network:
         aliases:
           - moneyprinter-api
 
@@ -120,7 +124,7 @@ services:
       retries: 5
 
     networks:
-      hermes-tools-network:
+      dokploy-network:
         aliases:
           - moneyprinter-redis
 
@@ -131,7 +135,4 @@ volumes:
 
 networks:
   dokploy-network:
-    external: true
-
-  hermes-tools-network:
     external: true
