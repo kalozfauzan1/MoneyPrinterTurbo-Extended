@@ -17,6 +17,10 @@ x-moneyprinter-common: &moneyprinter-common
     # Force CPU mode
     CHATTERBOX_DEVICE: cpu
 
+    # Persist downloaded AI models
+    HF_HOME: /MoneyPrinterTurbo/storage/huggingface
+    TORCH_HOME: /MoneyPrinterTurbo/storage/torch
+
     # Persistent config
     MPT_CONFIG_FILE: /MoneyPrinterTurbo/runtime-config/config.toml
 
