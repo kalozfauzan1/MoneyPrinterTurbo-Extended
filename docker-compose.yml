@@ -16,6 +16,8 @@ x-moneyprinter-common: &moneyprinter-common
     # Persistent runtime config
     MPT_CONFIG_FILE: /MoneyPrinterTurbo/runtime-config/config.toml
 
+    CHATTERBOX_DEVICE: cpu
+
     # Redis / task state
     MPT_REDIS_ENABLED: "true"
     MPT_REDIS_HOST: moneyprinter-redis
