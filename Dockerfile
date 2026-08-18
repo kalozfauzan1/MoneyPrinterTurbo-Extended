@@ -84,12 +84,4 @@ RUN chmod -R a+rwX /MoneyPrinterTurbo
 
 EXPOSE 8501 8080
 
-CMD [
-    "streamlit",
-    "run",
-    "./webui/Main.py",
-    "--server.address=0.0.0.0",
-    "--server.port=8501",
-    "--server.headless=true",
-    "--browser.gatherUsageStats=false"
-]
+CMD ["streamlit", "run", "./webui/Main.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--browser.gatherUsageStats=false"]
