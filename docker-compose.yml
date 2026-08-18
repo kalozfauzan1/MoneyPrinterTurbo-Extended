@@ -1,24 +1,135 @@
-x-common-volumes: &common-volumes
-  - ./:/MoneyPrinterTurbo
+x-moneyprinter-common: &moneyprinter-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: moneyprinterturbo-extended:local
+  restart: unless-stopped
+
+  volumes:
+    - ../files/moneyprinterturbo/storage:/MoneyPrinterTurbo/storage
+    - ../files/moneyprinterturbo/config:/MoneyPrinterTurbo/runtime-config
+
+  environment:
+    TZ: Asia/Jakarta
+    PYTHONUNBUFFERED: "1"
+
+    # Persistent runtime config
+    MPT_CONFIG_FILE: /MoneyPrinterTurbo/runtime-config/config.toml
+
+    # Redis / task state
+    MPT_REDIS_ENABLED: "true"
+    MPT_REDIS_HOST: moneyprinter-redis
+    MPT_REDIS_PORT: "6379"
+    MPT_REDIS_DB: "0"
+    MPT_REDIS_PASSWORD: ${MPT_REDIS_PASSWORD}
+    MPT_MAX_CONCURRENT_TASKS: ${MPT_MAX_CONCURRENT_TASKS:-1}
 
 services:
-  webui:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: "moneyprinterturbo-webui"
-    ports:
-      - "8501:8501"
-    command: [ "streamlit", "run", "./webui/Main.py","--browser.serverAddress=127.0.0.1","--server.enableCORS=True","--browser.gatherUsageStats=False" ]
-    volumes: *common-volumes
-    restart: always
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: "moneyprinterturbo-api"
-    ports:
-      - "8080:8080"
-    command: [ "python3", "main.py" ]
-    volumes: *common-volumes
-    restart: always
+  moneyprinter-webui:
+    <<: *moneyprinter-common
+
+    command:
+      - streamlit
+      - run
+      - ./webui/Main.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+      - --server.enableCORS=true
+      - --browser.gatherUsageStats=false
+
+    expose:
+      - "8501"
+
+    depends_on:
+      moneyprinter-redis:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    networks:
+      - dokploy-network
+      - hermes-tools-network
+
+
+  moneyprinter-api:
+    <<: *moneyprinter-common
+
+    command:
+      - python3
+      - main.py
+
+    expose:
+      - "8080"
+
+    depends_on:
+      moneyprinter-redis:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/openapi.json', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    networks:
+      hermes-tools-network:
+        aliases:
+          - moneyprinter-api
+
+
+  moneyprinter-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${MPT_REDIS_PASSWORD}
+
+    environment:
+      REDISCLI_AUTH: ${MPT_REDIS_PASSWORD}
+
+    volumes:
+      - moneyprinter-redis-data:/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "redis-cli ping | grep -q PONG"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      hermes-tools-network:
+        aliases:
+          - moneyprinter-redis
+
+
+volumes:
+  moneyprinter-redis-data:
+
+
+networks:
+  dokploy-network:
+    external: true
+
+  hermes-tools-network:
+    external: true
